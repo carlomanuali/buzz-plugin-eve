@@ -51,15 +51,13 @@ then posts the answer as the agent.
 - The `eve` CLI on your `PATH`, so that `eve acp --help` works:
   `npm i -g eve`. Checked with eve 1.0.0 and 1.3.0.
 - An eve agent reachable over HTTPS (or `http://localhost` for local
-  development), and a way for `eve acp` to authenticate to it:
-  - **Vercel:** log in with the Vercel CLI (`vercel login`) as a member of the
-    team that owns the deployment, and set **Vercel team** in the agent's
-    settings. Which identity your eve agent gives that login, and therefore
-    which memory and connections the Buzz agent gets, depends on your eve
-    agent's auth configuration.
-  - **A token:** set **Request header**, for example
-    `Authorization: Bearer …`. It is passed to `eve acp` as a command-line
-    argument, so other processes run by your user on this computer can see it.
+  development) that `eve acp` can authenticate to. On Vercel, log in with the
+  Vercel CLI (`vercel login`) as a member of the team that owns the deployment,
+  and set **Vercel team** in the agent's settings. Which identity your eve
+  agent gives that login decides which memory and connections the Buzz agent
+  gets (see "Trust"). This release has no token or header option: a token in
+  command-line arguments or ordinary agent settings would be readable by other
+  local processes, and would follow the agent to a changed URL.
 
 ## Install
 
@@ -68,8 +66,8 @@ then posts the answer as the agent.
    Git repository, or open
    `buzz://plugin-install?repository=https%3A%2F%2Fgithub.com%2Fcarlomanuali%2Fbuzz-plugin-eve.git&path=plugin`.
    Review the host access: one process, `eve acp`.
-3. Create an agent of type **Eve** and set its **Eve URL** (plus Vercel team
-   or header if needed).
+3. Create an agent of type **Eve** and set its **Eve URL** (plus the Vercel
+   team for a Vercel deployment).
 4. Mention it in a conversation.
 
 ## Settings
@@ -78,20 +76,32 @@ then posts the answer as the agent.
 | --- | --- |
 | Eve URL | The eve server, HTTPS, or HTTP only to `localhost`. Required. |
 | Vercel team | Passed as `--scope`, for a Vercel deployment. |
-| Request header | One `Name: value` line, passed as `--header`. |
 | Tool approvals | Decline (default) or approve automatically. |
 | Instructions | Added at the start of each new session. |
 | Sessions | One session per thread, or one per channel. |
 
-A changed URL, team or header restarts the agent's `eve acp` process. The
+A changed URL or team restarts the agent's `eve acp` process. The
 other settings apply to new sessions. Settings stay on this computer and do
 not sync between devices.
+
+## Trust
+
+- **The eve server you set is trusted.** It receives the conversation that
+  the agent is shown (the thread so far and new messages) and acts under its
+  own tool policies. The plugin's approval setting covers only the actions the
+  server asks to confirm.
+- **Identity is the server's decision.** `eve acp` signs in with your Vercel
+  CLI login, and the eve server maps that login to an identity. One server may
+  treat it as a limited service. Another may map it to your personal account,
+  with your memory and connected apps. Check your server's auth configuration
+  before you turn approvals on.
 
 ## Security notes
 
 - The plugin is trusted code inside Buzz. Its only host grant is starting
-  `eve acp`. The URL, team and header from the agent's settings are appended
-  as arguments, and values that could read as other options are refused.
+  `eve acp`. The URL and team from the agent's settings are appended as
+  arguments, and values that could read as other options are refused. The
+  plugin stores and passes no credentials.
 - With approvals on, eve can act on whatever accounts your eve server holds,
   whenever you mention the agent. That includes being steered by text it
   reads, such as earlier messages in the thread or content from connected

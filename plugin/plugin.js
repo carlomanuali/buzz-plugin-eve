@@ -33,7 +33,6 @@ const VERSION = "1.0.0";
 export const DEFAULT_CONFIG = Object.freeze({
   url: "",
   vercelScope: "",
-  header: "",
   approvals: "decline",
   instructions: "",
   scope: "thread",
@@ -47,7 +46,6 @@ export function config(raw) {
   return {
     url: text(value.url).trim(),
     vercelScope: text(value.vercelScope).trim(),
-    header: text(value.header).trim(),
     approvals: value.approvals === "approve" ? "approve" : "decline",
     instructions: text(value.instructions),
     scope: value.scope === "channel" ? "channel" : "thread",
@@ -76,28 +74,20 @@ export function validScope(value) {
   return value === "" || /^[A-Za-z0-9_][A-Za-z0-9_-]{0,99}$/.test(value);
 }
 
-/** One `Name: value` request header on one line. */
-export function validHeader(value) {
-  return value === "" || /^[A-Za-z0-9][A-Za-z0-9-]{0,99}: [^\r\n]{1,4000}$/.test(value);
-}
-
 /** Why `saved` cannot run, or "" when it can. */
 export function configProblem(saved) {
   if (!validUrl(saved.url))
     return "Set the eve agent's URL (https://…) in this agent's Settings.";
   if (!validScope(saved.vercelScope)) return "The Vercel team must be a slug or id.";
-  if (!validHeader(saved.header)) return "The header must be one `Name: value` line.";
   return "";
 }
 
-/** The arguments after the manifest's `acp`, which name where eve runs. */
+/** The arguments after the manifest's `acp`, which name where eve runs.
+ * No credentials: `eve acp` authenticates with the Vercel CLI login, and a
+ * token in argv or in ordinary agent settings would be readable by other
+ * local processes and would follow a changed URL. */
 export function processArgs(saved) {
-  return [
-    "--url",
-    saved.url,
-    ...(saved.vercelScope ? ["--scope", saved.vercelScope] : []),
-    ...(saved.header ? ["--header", saved.header] : []),
-  ];
+  return ["--url", saved.url, ...(saved.vercelScope ? ["--scope", saved.vercelScope] : [])];
 }
 
 /** A failure whose message the plugin wrote itself, so it may be posted. */
@@ -446,7 +436,7 @@ export class EveRuntime {
 
   process(entry, saved) {
     const args = processArgs(saved);
-    // A changed URL, team or header needs a process of its own; the old one
+    // A changed URL or team needs a process of its own; the old one
     // and its sessions go.
     if (entry.process && !entry.process.gone && entry.process.signature !== JSON.stringify(args))
       void entry.process.kill();
@@ -732,18 +722,6 @@ function views(React, ui) {
       ),
       h(
         Field,
-        { label: "Request header (optional)", hint: "One `Name: value` line sent to the eve server, e.g. a token. It is passed as a command-line argument on this computer." },
-        h("input", {
-          type: "password",
-          value: value.header,
-          disabled,
-          autoComplete: "off",
-          style: inputStyle(),
-          onChange: set("header"),
-        }),
-      ),
-      h(
-        Field,
         { label: "Tool approvals", hint: "When eve asks before using a tool (send an email, write to a connected app)." },
         h(
           "select",
@@ -806,7 +784,8 @@ function views(React, ui) {
       }
       setState({ saving: true, error: "" });
       try {
-        await save({ ...(agent.config ?? {}), ...config(draft) });
+        // Only this type's fields; anything else an older build saved goes.
+        await save(config(draft));
         setState({ saving: false, error: "" });
       } catch (error) {
         setState({ saving: false, error: errorText(error) });
@@ -816,7 +795,7 @@ function views(React, ui) {
     return h(
       "form",
       { onSubmit: submit, style: column },
-      h("p", null, "A changed URL, team or header restarts this agent's eve connection; other settings apply to new sessions."),
+      h("p", null, "A changed URL or team restarts this agent's eve connection; other settings apply to new sessions. The eve server you set receives the conversation and acts under its own policies."),
       h(Fields, { value: draft, onChange: setDraft, disabled: state.saving }),
       state.error ? h("p", { role: "alert" }, state.error) : null,
       Button

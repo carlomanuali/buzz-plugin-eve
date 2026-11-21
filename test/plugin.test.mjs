@@ -479,16 +479,16 @@ test("a stop reason without text is reported in the plugin's words", async (t) =
 });
 
 test("config reads any saved shape", () => {
-  const empty = { url: "", vercelScope: "", header: "", approvals: "decline", instructions: "", scope: "thread" };
+  const empty = { url: "", vercelScope: "", approvals: "decline", instructions: "", scope: "thread" };
   assert.deepEqual(config(undefined), empty);
   assert.deepEqual(config({ instructions: 3, scope: "community", approvals: "yes", url: 5 }), empty);
   assert.deepEqual(
     config({ url: " https://a.example ", vercelScope: " team_1 ", header: " X-Key: v ", approvals: "approve", instructions: "x", scope: "channel" }),
-    { url: "https://a.example", vercelScope: "team_1", header: "X-Key: v", approvals: "approve", instructions: "x", scope: "channel" },
+    { url: "https://a.example", vercelScope: "team_1", approvals: "approve", instructions: "x", scope: "channel" },
   );
 });
 
-test("configProblem accepts HTTPS and local HTTP only, and checks team and header", () => {
+test("configProblem accepts HTTPS and local HTTP only, and checks the team", () => {
   const ok = (over) => configProblem(config({ url: "https://a.example", ...over }));
   assert.equal(ok({}), "");
   assert.equal(ok({ url: "http://localhost:3000" }), "");
@@ -500,18 +500,13 @@ test("configProblem accepts HTTPS and local HTTP only, and checks team and heade
   assert.equal(ok({ vercelScope: "team_abc-1" }), "");
   assert.match(ok({ vercelScope: "a b" }), /Vercel team/);
   assert.match(ok({ vercelScope: "--header" }), /Vercel team/);
-  assert.match(ok({ header: "-H: x" }), /header/);
-  assert.equal(ok({ header: "Authorization: Bearer x" }), "");
-  assert.match(ok({ header: "Authorization: a\nX: b" }), /header/);
-  assert.match(ok({ header: "no-colon" }), /header/);
 });
 
-test("processArgs passes URL, team and header after the manifest's acp", () => {
+test("processArgs passes only URL and team after the manifest's acp", () => {
   assert.deepEqual(processArgs(config({ url: "https://a.example" })), ["--url", "https://a.example"]);
-  assert.deepEqual(
-    processArgs(config({ url: "https://a.example", vercelScope: "t", header: "X-Key: v" })),
-    ["--url", "https://a.example", "--scope", "t", "--header", "X-Key: v"],
-  );
+  assert.deepEqual(processArgs(config({ url: "https://a.example", vercelScope: "t" })), [
+    "--url", "https://a.example", "--scope", "t",
+  ]);
 });
 
 test("a turn without a usable URL says how to set it up and starts nothing", async (t) => {
@@ -526,14 +521,52 @@ test("a turn without a usable URL says how to set it up and starts nothing", asy
   assert.equal(host.spawned, 0);
 });
 
-test("the eve process gets the agent's URL, team and header", async (t) => {
+test("the eve process gets the URL and team, and never a saved credential", async (t) => {
   const { host, runtime } = await setup();
   t.after(() => runtime.dispose());
-  const d = delivery("hi");
-  d.config = { url: "https://a.example", vercelScope: "team_x", header: "X-Key: v" };
-  await runtime.run(d);
-  assert.deepEqual(await d.done, { ok: true });
-  assert.deepEqual(host.args, [["--url", "https://a.example", "--scope", "team_x", "--header", "X-Key: v"]]);
+  // An older build or a hand-edited config may hold a header; it must not
+  // reach argv, nor follow the agent to another URL.
+  const token = "SYNTHETIC-TOKEN-4d1c";
+  const first = delivery("one");
+  first.config = { url: "https://a.example", vercelScope: "team_x", header: `Authorization: Bearer ${token}` };
+  await runtime.run(first);
+  assert.deepEqual(await first.done, { ok: true });
+  const second = delivery("two");
+  second.config = { url: "https://b.example", header: `Authorization: Bearer ${token}` };
+  await runtime.run(second);
+  assert.deepEqual(await second.done, { ok: true });
+  assert.deepEqual(host.args, [
+    ["--url", "https://a.example", "--scope", "team_x"],
+    ["--url", "https://b.example"],
+  ]);
+  assert.doesNotMatch(JSON.stringify(host.args), new RegExp(token));
+});
+
+test("Settings saves only this type's fields, dropping a stale header", async () => {
+  let registered;
+  const states = [];
+  const React = {
+    createElement: (type, props, ...children) => ({ type, props: props ?? {}, children }),
+    useState: (v) => {
+      states.push(v);
+      return [v, () => {}];
+    },
+    useEffect: () => {},
+  };
+  apply({
+    react: React,
+    reflect: { get: () => undefined },
+    effect: () => {},
+    host: fakeHost(),
+    agents: { harness: fakeHarness(), register: (type) => (registered = type) },
+  });
+  const Settings = registered.tabs[0].component;
+  let saved;
+  const agent = { config: { url: "https://a.example", header: "Authorization: Bearer SYNTHETIC", approvals: "approve" } };
+  const form = Settings({ agent, save: async (value) => (saved = value) });
+  await form.props.onSubmit({ preventDefault() {} });
+  assert.deepEqual(saved, { url: "https://a.example", vercelScope: "", approvals: "approve", instructions: "", scope: "thread" });
+  assert.doesNotMatch(JSON.stringify(saved), /SYNTHETIC/);
 });
 
 test("a changed URL replaces the process and its sessions", async (t) => {
@@ -595,7 +628,7 @@ test("apply registers the Eve type with the plugin contract's pieces", async () 
   assert.equal(registered.id, "eve");
   assert.equal(registered.title, "Eve");
   assert.deepEqual(registered.defaults(), {
-    config: { url: "", vercelScope: "", header: "", approvals: "decline", instructions: "", scope: "thread" },
+    config: { url: "", vercelScope: "", approvals: "decline", instructions: "", scope: "thread" },
   });
   assert.equal(registered.summary({ config: { url: "https://a.example/x" } }), "a.example");
   assert.equal(registered.summary({ config: {} }), "eve · not set up");
@@ -604,7 +637,7 @@ test("apply registers the Eve type with the plugin contract's pieces", async () 
     sessionScope: "channel",
   });
   assert.deepEqual(registered.adopt({ instructions: "old" }, registered.defaults().config), {
-    url: "", vercelScope: "", header: "", approvals: "decline", instructions: "old", scope: "thread",
+    url: "", vercelScope: "", approvals: "decline", instructions: "old", scope: "thread",
   });
   assert.equal(typeof registered.run, "function");
   assert.equal(registered.resumes, true);
