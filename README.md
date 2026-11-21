@@ -4,7 +4,7 @@
 [Buzz](https://buzz.xyz).** Mention it in a thread and it answers there, with
 its own tools, memory and connected apps.
 
-<!-- screenshot: docs/screenshot.png -->
+<img src="docs/reply.png" alt="An Eve agent answering a question in a Buzz thread, with links to its sources" width="448">
 
 ## Quick start
 
@@ -14,6 +14,8 @@ its own tools, memory and connected apps.
    plugins → Add**.
 3. Create an agent of type **Eve**, set its **Eve URL** (and the Vercel team
    for a Vercel deployment), then mention it.
+
+<img src="docs/create-agent.png" alt="Buzz's Create agent dialog with the Eve harness selected and the Eve URL and Vercel team fields" width="360">
 
 The plugin is a single file with no dependencies. Its only permission is
 starting `eve acp`. Tool approvals are off by default.
@@ -85,6 +87,8 @@ agent and posts the answer as the agent.
    Git repository, or open
    `buzz://plugin-install?repository=https%3A%2F%2Fgithub.com%2Fcarlomanuali%2Fbuzz-plugin-eve.git&path=plugin`.
    Review the host access: one process, `eve acp`.
+
+   <img src="docs/plugins.png" alt="The Eve plugin listed in Buzz's Settings, Plugins" width="480">
 3. Create an agent of type **Eve** and set its **Eve URL** (plus the Vercel
    team for a Vercel deployment).
 4. Mention it in a conversation.
