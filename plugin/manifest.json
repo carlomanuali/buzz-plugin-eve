@@ -1,0 +1,19 @@
+{
+  "id": "carlomanuali.eve",
+  "name": "Eve",
+  "apiVersion": 1,
+  "description": "Run an eve agent (vercel/eve) as a Buzz agent through `eve acp`. Each conversation is one eve session; the plugin posts the agent's answer.",
+  "discovery": {
+    "category": "agents",
+    "tags": ["eve", "vercel", "acp", "agents"]
+  },
+  "host": {
+    "processes": [
+      {
+        "id": "eve",
+        "program": "eve",
+        "args": ["acp"]
+      }
+    ]
+  }
+}

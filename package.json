@@ -1,0 +1,15 @@
+{
+  "name": "buzz-plugin-eve",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Buzz desktop plugin: run an eve agent (vercel/eve) as a Buzz agent through `eve acp`. No dependencies; plugin/ is the installable folder.",
+  "license": "Apache-2.0",
+  "repository": { "type": "git", "url": "https://github.com/carlomanuali/buzz-plugin-eve.git" },
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "test": "node --test test/plugin.test.mjs",
+    "check": "node --check plugin/plugin.js && node --test test/plugin.test.mjs",
+    "live": "node test/live.mjs"
+  }
+}
