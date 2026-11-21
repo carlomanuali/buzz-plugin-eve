@@ -80,9 +80,23 @@ then posts the answer as the agent.
 | Instructions | Added at the start of each new session. |
 | Sessions | One session per thread, or one per channel. |
 
-A changed URL or team restarts the agent's `eve acp` process. The
-other settings apply to new sessions. Settings stay on this computer and do
-not sync between devices.
+When settings apply:
+
+- **URL and Vercel team:** from the next mention. The agent's `eve acp`
+  process restarts, and its sessions start over.
+- **Tool approvals:** from the next mention, in existing sessions too.
+- **Instructions:** in new sessions (after a restart, a URL change, or a new
+  thread).
+- **Sessions:** a different scope means a different conversation, so the
+  next mention starts a new session.
+
+A turn that was waiting behind another one runs on the settings saved when it
+starts.
+
+Sync: the **instructions** sync between your devices with the community's
+agent settings, like any agent's instructions, and each device that runs the
+agent sends them to its eve server. **URL, Vercel team, approvals and session
+scope** stay on the computer where you set them.
 
 ## Trust
 

@@ -542,6 +542,34 @@ test("the eve process gets the URL and team, and never a saved credential", asyn
   assert.doesNotMatch(JSON.stringify(host.args), new RegExp(token));
 });
 
+test("a turn runs on the settings saved now, not those of an older accepted mention", async (t) => {
+  const host = fakeHost();
+  const harness = fakeHarness();
+  let current = { url: "https://new.example", approvals: "decline" };
+  const runtime = new EveRuntime(host, harness, { current: () => current });
+  t.after(() => runtime.dispose());
+  // Accepted with the old URL and approvals on; saved since as new URL, off.
+  const d = delivery("PERMISSION please");
+  d.config = { url: "https://old.example", approvals: "approve" };
+  await runtime.run(d);
+  assert.deepEqual(await d.done, { ok: true });
+  assert.deepEqual(host.args, [["--url", "https://new.example"]]);
+  assert.match(harness.replies[0].text, /^permission:i:deny/);
+  // A queued turn from before the change does not restart the old URL.
+  const stale = delivery("again");
+  stale.config = { url: "https://old.example" };
+  await runtime.run(stale);
+  assert.deepEqual(await stale.done, { ok: true });
+  assert.equal(host.spawned, 1);
+  current = undefined;
+  // Without a current config the accepted one is used.
+  const fallback = delivery("fallback");
+  fallback.config = { url: "https://old.example" };
+  await runtime.run(fallback);
+  await fallback.done;
+  assert.deepEqual(host.args.at(-1), ["--url", "https://old.example"]);
+});
+
 test("Settings saves only this type's fields, dropping a stale header", async () => {
   let registered;
   const states = [];
@@ -564,6 +592,10 @@ test("Settings saves only this type's fields, dropping a stale header", async ()
   let saved;
   const agent = { config: { url: "https://a.example", header: "Authorization: Bearer SYNTHETIC", approvals: "approve" } };
   const form = Settings({ agent, save: async (value) => (saved = value) });
+  // Only the stale header differs, and Save is still enabled to drop it.
+  const button = form.children.at(-1);
+  assert.equal(button.type, "button");
+  assert.equal(button.props.disabled, false);
   await form.props.onSubmit({ preventDefault() {} });
   assert.deepEqual(saved, { url: "https://a.example", vercelScope: "", approvals: "approve", instructions: "", scope: "thread" });
   assert.doesNotMatch(JSON.stringify(saved), /SYNTHETIC/);

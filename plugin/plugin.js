@@ -306,9 +306,6 @@ export class TurnText {
     }
   }
 
-  /** eve asks before a tool call that needs approval. Like Buzz's own agents,
-   * which run their tools as the owner, the plugin approves it (only owner
-   * mentions start a turn) and names it under the reply. */
   /** eve asks before a tool call that needs approval. With approvals on,
    * the plugin approves it (only owner mentions start a turn); otherwise it
    * declines it. Either way the reply names it. Nothing is approved after
@@ -408,9 +405,12 @@ function turnControl() {
 
 /** Runs Eve agents: their processes, sessions and turns. */
 export class EveRuntime {
+  /** `limits.current(agentKey)` gives the agent's config as saved now, so a
+   * turn accepted before a settings change still runs on the new settings. */
   constructor(host, harness, limits = {}) {
     this.host = host;
     this.harness = harness;
+    this.current = limits.current;
     this.startMs = limits.startMs ?? START_MS;
     this.turnMs = limits.turnMs ?? TURN_MS;
     /** agent key -> { process, sessions: Map<conversation key, session>,
@@ -547,8 +547,13 @@ export class EveRuntime {
     }
   }
 
-  async turn(delivery, entry, conversation, saved, control) {
+  async turn(delivery, entry, conversation, accepted, control) {
     const { agent } = delivery;
+    // The settings as saved now, not when the mention was accepted: a turn
+    // that waited behind another must not restart eve on an old URL, nor run
+    // on old approvals. The conversation (scope) stays as accepted.
+    const latest = this.current?.(agent.key);
+    const saved = latest ? { ...config(latest), scope: accepted.scope } : accepted;
     const stale = () =>
       control.stopped ||
       this.disposed ||
@@ -764,7 +769,8 @@ function views(React, ui) {
       h(Fields, {
         value,
         disabled,
-        onChange: (next) => onChange({ ...(raw ?? {}), ...next }),
+        // Only this type's fields, so nothing unknown is carried into the agent.
+        onChange: (next) => onChange(config({ ...(raw ?? {}), ...next })),
       }),
       problem && value.url ? h("p", { role: "alert" }, problem) : null,
     );
@@ -774,7 +780,11 @@ function views(React, ui) {
     const saved = config(agent.config);
     const [draft, setDraft] = React.useState(saved);
     const [state, setState] = React.useState({ saving: false, error: "" });
-    const dirty = JSON.stringify(config(draft)) !== JSON.stringify(saved);
+    // A saved config with fields this type no longer reads (an old header)
+    // counts as a change, so Save can drop them.
+    const dirty =
+      JSON.stringify(config(draft)) !== JSON.stringify(saved) ||
+      JSON.stringify(agent.config ?? {}) !== JSON.stringify(saved);
     const problem = configProblem(config(draft));
     const submit = async (event) => {
       event.preventDefault();
@@ -795,7 +805,7 @@ function views(React, ui) {
     return h(
       "form",
       { onSubmit: submit, style: column },
-      h("p", null, "A changed URL or team restarts this agent's eve connection; other settings apply to new sessions. The eve server you set receives the conversation and acts under its own policies."),
+      h("p", null, "A changed URL or team restarts this agent's eve connection, and tool approvals apply from the next mention. Instructions apply to new sessions. The eve server you set receives the conversation and acts under its own policies."),
       h(Fields, { value: draft, onChange: setDraft, disabled: state.saving }),
       state.error ? h("p", { role: "alert" }, state.error) : null,
       Button
@@ -824,7 +834,15 @@ export function apply(ctx) {
   const { agents, host } = ctx;
   // Only the desktop app can start a process.
   if (typeof host?.spawn !== "function" || !agents?.harness) return;
-  const runtime = new EveRuntime(host, agents.harness);
+  const runtime = new EveRuntime(host, agents.harness, {
+    current: (key) => {
+      try {
+        return agents.snapshot?.().running?.find((agent) => agent.key === key)?.config;
+      } catch {
+        return undefined;
+      }
+    },
+  });
   ctx.effect(() => () => runtime.dispose());
   const { Create, Settings } = views(ctx.react, ctx.reflect?.get?.("ui"));
 
