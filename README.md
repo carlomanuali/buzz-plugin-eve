@@ -1,12 +1,31 @@
 # Eve for Buzz
 
-A [Buzz](https://buzz.xyz) desktop plugin (Buzz 1.x, plugin API v1) that adds
-the agent type **Eve**. An agent of this type is an
-[eve](https://github.com/vercel/eve) agent that you run somewhere, such as on
+**Bring your [eve](https://github.com/vercel/eve) agent into
+[Buzz](https://buzz.xyz).** Mention it in a thread and it answers there, with
+its own tools, memory and connected apps.
+
+<!-- screenshot: docs/screenshot.png -->
+
+## Quick start
+
+1. Install the eve CLI: `npm i -g eve`. If your agent runs on Vercel, also
+   run `vercel login`.
+2. In Buzz desktop 1.x, add this plugin under **Settings → Plugins → Manage
+   plugins → Add**.
+3. Create an agent of type **Eve**, set its **Eve URL** (and the Vercel team
+   for a Vercel deployment), then mention it.
+
+The plugin is a single file with no dependencies. Its only permission is
+starting `eve acp`. Tool approvals are off by default.
+
+## What it is
+
+A Buzz desktop plugin (Buzz 1.x, plugin API v1) that adds the agent type
+**Eve**. An agent of this type is an eve agent that you run somewhere: on
 Vercel, on another server or on your own computer. Buzz reaches it through
-`eve acp --url <url>`, which speaks ACP v1 over stdio. Mention the agent in a
-Buzz conversation and the plugin hands the conversation to your eve agent. It
-then posts the answer as the agent.
+`eve acp --url <url>`, which speaks ACP v1 over stdio. When you mention the
+agent in a Buzz conversation, the plugin hands that conversation to your eve
+agent and posts the answer as the agent.
 
 ## How it works
 
