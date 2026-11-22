@@ -438,14 +438,14 @@ test("the first prompt carries no Buzz core memory, only the plugin's own head",
   const { harness, runtime } = await setup();
   t.after(() => runtime.dispose());
   const d = delivery("ECHOALL trigger-text-91");
-  d.agent = { key: "agent-1", name: "Eve Hall" };
+  d.agent = { key: "agent-1", name: "My Eve" };
   await runtime.run(d);
   assert.deepEqual(await d.done, { ok: true });
   const sent = harness.replies[0].text;
   assert.equal(harness.systemPromptCalls, 0);
   assert.doesNotMatch(sent, /CORE-MEMORY-MARKER/);
   assert.match(sent, /trigger-text-91/);
-  assert.match(sent, /^<buzz-context>\nYou are Eve Hall, answering in Buzz, a team chat app, in #eve\./);
+  assert.match(sent, /^<buzz-context>\nYou are My Eve, answering in Buzz, a team chat app, in #eve\./);
   assert.match(sent, /<owner-instructions>\nbe brief\n<\/owner-instructions>/);
 });
 
