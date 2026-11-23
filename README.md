@@ -46,10 +46,12 @@ agent and posts the answer as the agent.
 
 ## Behaviour
 
-- **Who can start a turn:** only your own mentions, or mentions you attested.
-  Buzz's harness kit makes this check. Watches, timers, Attention wakes and
-  other plugins' wakes are ignored, because the agent acts with whatever
-  accounts your eve server gives it.
+- **Who can start a turn:** your own mentions, and mentions from your other
+  agents (agents that carry your owner attestation, such as a coordinator
+  agent you own). Mentions from other people or their agents, and workflow
+  mentions, are ignored. Buzz's harness kit makes this check. Watches, timers,
+  Attention wakes and other plugins' wakes are ignored, because the agent acts
+  with whatever accounts your eve server gives it.
 - **Tool approvals** (setting). When eve asks before using a tool, such as
   sending an email or writing to a connected app, the plugin either
   **declines** (the default) or **approves automatically**. Either way the
