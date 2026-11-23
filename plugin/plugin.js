@@ -307,9 +307,9 @@ export class TurnText {
   }
 
   /** eve asks before a tool call that needs approval. With approvals on,
-   * the plugin approves it (only owner mentions start a turn); otherwise it
-   * declines it. Either way the reply names it. Nothing is approved after
-   * Stop or once the delivery is no longer current. */
+   * the plugin approves it (only the owner and agents the owner attested
+   * start a turn); otherwise it declines it. Either way the reply names it.
+   * Nothing is approved after Stop or once the delivery is no longer current. */
   permission(params) {
     if (!this.allowed()) return { outcome: "cancelled" };
     const options = Array.isArray(params?.options) ? params.options : [];
@@ -477,12 +477,13 @@ export class EveRuntime {
 
   async run(delivery) {
     const { trigger, agent } = delivery;
-    // Only the owner's own mentions. Watches and timers that name a channel
+    // Only mentions start a turn. Watches and timers that name a channel
     // arrive as `attention`, and other plugins' wakes as `plugin`: Eve acts
     // with the owner's accounts, so neither starts a turn.
     if (trigger.type !== "mention") return delivery.ignored?.();
     const saved = config(delivery.config);
-    // Owner-only admission, frozen destination: the kit decides.
+    // Admission (the owner or an agent the owner attested) and frozen
+    // destination: the kit decides.
     const conversation = await this.harness.conversation(delivery, saved.scope);
     if (!conversation) return delivery.ignored?.();
     if (delivery.current && !delivery.current()) return delivery.ignored?.();
